@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from "next/headers";
 import { NextResponse } from 'next/server';
 
@@ -8,9 +8,13 @@ import { createOrRetrieveCustomer } from '@/libs/supabaseAdmin';
 
 export async function POST() {
   try {
+    // Create a cookie store first
+    const cookieStore = cookies();
+    
+    // Pass a function that returns the cookie store
     const supabase = createRouteHandlerClient({ 
-      cookies
-     });
+      cookies: () => cookieStore
+    });
     
     const {
       data: { user }
@@ -29,8 +33,8 @@ export async function POST() {
     });
 
     return NextResponse.json({ url });
-  } catch (err: any) {
+  } catch (err) {
     console.log(err);
-    new NextResponse('Internal Error', { status: 500 })
+    return new NextResponse('Internal Error', { status: 500 });
   }
-};
+}
