@@ -1,50 +1,46 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from "next/headers";
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from "next/server";
+import Stripe from "stripe";
 
-import { stripe } from '@/libs/stripe';
-import { getURL } from '@/libs/helpers';
-import { createOrRetrieveCustomer } from '@/libs/supabaseAdmin';
+// Make sure STRIPE_SECRET_KEY is defined
+const stripeSecret = process.env.STRIPE_SECRET_KEY;
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
-export async function POST(
-  request: Request
-) {
-  const { price, quantity = 1, metadata = {} } = await request.json();
+if (!stripeSecret) {
+  throw new Error("Missing STRIPE_SECRET_KEY in environment variables.");
+}
 
+if (!baseUrl) {
+  throw new Error("Missing NEXT_PUBLIC_BASE_URL in environment variables.");
+}
+
+const stripe = new Stripe(stripeSecret, {
+  apiVersion: "2022-11-15",
+});
+
+export async function POST(req: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ 
-      cookies
-      });      const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    const customer = await createOrRetrieveCustomer({
-      uuid: user?.id || '',
-      email: user?.email || ''
-    });
-
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      billing_address_collection: 'required',
-      customer,
+      payment_method_types: ["card"],
+      mode: "payment",
       line_items: [
         {
-          price: price.id,
-          quantity
-        }
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Sample Product",
+            },
+            unit_amount: 1000, // $10.00
+          },
+          quantity: 1,
+        },
       ],
-      mode: 'subscription',
-      allow_promotion_codes: true,
-      subscription_data: {
-        metadata
-      },
-      success_url: `${getURL()}/account`,
-      cancel_url: `${getURL()}/`
+      success_url: `${baseUrl}/success`,
+      cancel_url: `${baseUrl}/cancel`,
     });
 
-    return NextResponse.json({ sessionId: session.id });
-  } catch (err: any) {
-    console.log(err);
-    return new NextResponse('Internal Error', { status: 500 });
+    return NextResponse.json({ id: session.id });
+  } catch (err) {
+    console.error("Stripe Error:", err);
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
