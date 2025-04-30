@@ -14,7 +14,7 @@ if (!baseUrl) {
 }
 
 const stripe = new Stripe(stripeSecret, {
-  apiVersion: "2022-11-15",
+  apiVersion: "2023-08-16",
 });
 
 export async function POST(req: NextRequest) {
